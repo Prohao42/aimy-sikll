@@ -99,6 +99,11 @@ def _sess(args):
     from tools.auth_engine import auth_from_args
     sess = auth_from_args(args)
     sess.mount("https://", _tls12_adapter())
+    # http:// otherwise falls back to the default adapter (pool_maxsize=10),
+    # which floods "Connection pool is full" warnings under multi-threaded auto.
+    _threads = getattr(args, "threads", 10) or 10
+    _pool = max(100, _threads * 4)
+    sess.mount("http://", HTTPAdapter(pool_connections=_pool, pool_maxsize=_pool))
     if "User-Agent" not in sess.headers:
         sess.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
