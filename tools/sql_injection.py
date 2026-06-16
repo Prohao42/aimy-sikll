@@ -34,6 +34,15 @@ SQLI_ERROR_PATTERNS = [
     r"SQLite.Exception",
     r"System.Data.SQLite",
     r"SQLite3::SQLException",
+    r"sqlite3.OperationalError",
+    r"sqlite3.ProgrammingError",
+    r"sqlite3.IntegrityError",
+    r"OperationalError:.*(syntax error|no such (column|table)|unrecognized token)",
+    r"unrecognized token:",
+    r"no such column:",
+    r"no such table:",
+    r"SQLITE_ERROR",
+    r"near \"[^\"]+\": syntax error",
     r"Unclosed quotation mark",
     r"unclosed quotation mark",
     r"Unterminated string literal",
@@ -88,10 +97,12 @@ def check(url: str, param: str, sess: Optional[requests.Session] = None,
                         result["dbms"] = "Oracle"
                     elif "PostgreSQL" in p or "pg_" in p:
                         result["dbms"] = "PostgreSQL"
-                    elif "SQLite" in p:
+                    elif "SQLite" in p or "sqlite" in p or "unrecognized token" in p or "no such" in p or "SQLITE" in p:
                         result["dbms"] = "SQLite"
                     elif "SQL Server" in p or "mssql" in p:
                         result["dbms"] = "MSSQL"
+                    if not result["dbms"]:
+                        result["dbms"] = guess_dbms(r.text)
                     break
         except Exception as e:
             logger.debug("sqli error payload %s: %s", payload[:20], e)
@@ -210,7 +221,7 @@ def guess_dbms(text: str) -> Optional[str]:
         (r"mysql|MariaDB", "MySQL/MariaDB"),
         (r"postgresql|pg_|PSQLException", "PostgreSQL"),
         (r"ORA-\d{5}|oracle", "Oracle"),
-        (r"sqlite|SQLite", "SQLite"),
+        (r"sqlite|SQLite|unrecognized token|no such (column|table)|SQLITE_ERROR|near \"[^\"]+\": syntax error", "SQLite"),
         (r"mssql|sql server|OLE DB|SqlException", "MSSQL"),
     ]:
         if re.search(pat, text, re.IGNORECASE):
